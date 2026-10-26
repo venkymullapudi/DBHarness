@@ -1,4 +1,4 @@
-"""AIDBGate — an RBAC + PAM enforcement gateway between AI agents and a database.
+"""DBHarness — an RBAC + PAM enforcement gateway between AI agents and a database.
 
 The gate is the trust boundary. Agents never receive DB credentials and never
 run raw SQL directly against the database: every request is authenticated to a

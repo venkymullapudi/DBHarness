@@ -7,7 +7,7 @@ enforcement the rewriter must apply — the row-filter predicates to AND into th
 statement and the columns to redact — and whether the operation needs human
 approval.
 
-The engine never sees raw SQL; parsing lives in :mod:`aidbgate.sql`. That split
+The engine never sees raw SQL; parsing lives in :mod:`dbharness.sql`. That split
 keeps authorization logic independent of SQL-dialect quirks and easy to test.
 
 Evaluation rules:
@@ -28,7 +28,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Set
 
-from aidbgate.policy.models import Action, Effect, Permission, Policy, Principal
+from dbharness.policy.models import Action, Effect, Permission, Policy, Principal
 
 _CTX_PLACEHOLDER = re.compile(r"\{ctx\.([a-zA-Z0-9_]+)\}")
 

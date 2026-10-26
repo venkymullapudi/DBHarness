@@ -2,7 +2,7 @@
 
 import pytest
 
-from aidbgate.querybuilder import QueryBuilderError, build, build_find
+from dbharness.querybuilder import QueryBuilderError, build, build_find
 
 
 # -- compilation + safety (unit) ---------------------------------------------

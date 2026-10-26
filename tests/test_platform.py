@@ -5,9 +5,9 @@ import os
 
 import pytest
 
-from aidbgate.audit import AuditLog, FileAuditSink, NullAuditSink
-from aidbgate.observability import InMemoryMetrics, NullObserver
-from aidbgate.secrets import SecretError, register_provider, resolve_secret
+from dbharness.audit import AuditLog, FileAuditSink, NullAuditSink
+from dbharness.observability import InMemoryMetrics, NullObserver
+from dbharness.secrets import SecretError, register_provider, resolve_secret
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 POLICY = os.path.join(ROOT, "policies", "example.yaml")
@@ -28,8 +28,8 @@ def test_secret_dsn_uri_is_passthrough():
 
 
 def test_secret_env(monkeypatch):
-    monkeypatch.setenv("AIDBGATE_TEST_SECRET", "s3cr3t")
-    assert resolve_secret("env:AIDBGATE_TEST_SECRET") == "s3cr3t"
+    monkeypatch.setenv("DBHARNESS_TEST_SECRET", "s3cr3t")
+    assert resolve_secret("env:DBHARNESS_TEST_SECRET") == "s3cr3t"
 
 
 def test_secret_env_missing():
@@ -94,7 +94,7 @@ async def test_metrics_count_gate_outcomes(gate):
 
 
 def test_pam_uses_injected_store():
-    from aidbgate.pam import InMemoryPamStore, PamBroker
+    from dbharness.pam import InMemoryPamStore, PamBroker
 
     store = InMemoryPamStore()
     broker = PamBroker(store=store)
@@ -135,9 +135,9 @@ async def test_explain_flags_required_approval(gate):
 
 def test_explain_does_not_touch_db():
     # explain must work with a NullExecutor that raises on any query/execute.
-    from aidbgate.db import NullExecutor
-    from aidbgate.gate import Gate
-    from aidbgate.policy.loader import load_policy
+    from dbharness.db import NullExecutor
+    from dbharness.gate import Gate
+    from dbharness.policy.loader import load_policy
 
     g = Gate(policy=load_policy(POLICY),
              executor=NullExecutor(dialect="postgres"),
@@ -151,7 +151,7 @@ def test_explain_does_not_touch_db():
 
 
 def test_cli_policy_validate_ok(capsys):
-    from aidbgate.cli import main
+    from dbharness.cli import main
 
     with pytest.raises(SystemExit) as exc:
         main(["policy", "validate", POLICY])
@@ -160,7 +160,7 @@ def test_cli_policy_validate_ok(capsys):
 
 
 def test_cli_policy_validate_bad(tmp_path, capsys):
-    from aidbgate.cli import main
+    from dbharness.cli import main
 
     bad = tmp_path / "bad.yaml"
     bad.write_text("principals:\n  - id: x\n    roles: [nope]\n")  # unknown role, no key
@@ -170,7 +170,7 @@ def test_cli_policy_validate_bad(tmp_path, capsys):
 
 
 def test_cli_explain_denied_exit_code(capsys):
-    from aidbgate.cli import main
+    from dbharness.cli import main
 
     with pytest.raises(SystemExit) as exc:
         main(["explain", "--policy", POLICY, "--principal", "support-bot",
@@ -180,7 +180,7 @@ def test_cli_explain_denied_exit_code(capsys):
 
 
 def test_cli_explain_allowed(capsys):
-    from aidbgate.cli import main
+    from dbharness.cli import main
 
     with pytest.raises(SystemExit) as exc:
         main(["explain", "--policy", POLICY, "--principal", "support-bot",
@@ -193,7 +193,7 @@ def test_cli_explain_allowed(capsys):
 
 
 def test_mysql_executor_parses_dsn_and_schema():
-    from aidbgate.db import MySQLExecutor, make_executor
+    from dbharness.db import MySQLExecutor, make_executor
 
     ex = MySQLExecutor("mysql://user:pw@dbhost:3306/appdb")
     assert ex.dialect == "mysql"
@@ -202,7 +202,7 @@ def test_mysql_executor_parses_dsn_and_schema():
 
 
 def test_mysql_dialect_guard_rewrites():
-    from aidbgate.sql import SqlGuard
+    from dbharness.sql import SqlGuard
 
     g = SqlGuard(dialect="mysql", default_schema="appdb")
     root, analyzed = g.analyze("SELECT id FROM tickets WHERE id = 1")
@@ -212,6 +212,6 @@ def test_mysql_dialect_guard_rewrites():
 
 
 def test_null_backend_factory():
-    from aidbgate.db import NullExecutor, make_executor
+    from dbharness.db import NullExecutor, make_executor
 
     assert isinstance(make_executor("null"), NullExecutor)

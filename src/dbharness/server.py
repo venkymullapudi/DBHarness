@@ -1,8 +1,8 @@
-"""The MCP server — AIDBGate's agent-facing surface.
+"""The MCP server — DBHarness's agent-facing surface.
 
 An AI agent connects over MCP and sees a small set of tools instead of a raw
 database connection. Each connection is authenticated to exactly one principal
-(via ``AIDBGATE_API_KEY``), and every tool call is routed through :class:`Gate`,
+(via ``DBHARNESS_API_KEY``), and every tool call is routed through :class:`Gate`,
 so the policy engine, SQL rewriter, PAM broker and audit log all apply — there
 is no path from a tool call to the database that skips enforcement.
 
@@ -12,8 +12,8 @@ Operator tools:   ``list_pending_approvals``, ``decide_approval``, ``elevate``,
                   ``audit_tail`` — restricted to principals holding the ``admin``
                   role.
 
-Run it over stdio with ``aidbgate`` (see the console-script entry point) or
-``python -m aidbgate.server``.
+Run it over stdio with ``dbharness`` (see the console-script entry point) or
+``python -m dbharness.server``.
 """
 
 from __future__ import annotations
@@ -22,10 +22,10 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List
 
-from aidbgate.config import Settings, build_gate
-from aidbgate.gate import AuthError, Gate
-from aidbgate.pam import PamError
-from aidbgate.policy.models import Principal
+from dbharness.config import Settings, build_gate
+from dbharness.gate import AuthError, Gate
+from dbharness.pam import PamError
+from dbharness.policy.models import Principal
 
 # The high-level server class is FastMCP in mcp 1.x and MCPServer in mcp 2.x;
 # both expose the same .tool()/.run()/.list_tools() surface and lifespan kwarg.
@@ -65,7 +65,7 @@ async def _lifespan(_server):
         await _gate.executor.close()
 
 
-mcp = _Server("aidbgate", lifespan=_lifespan)
+mcp = _Server("dbharness", lifespan=_lifespan)
 
 
 # -- agent tools -------------------------------------------------------------
@@ -238,7 +238,7 @@ def main() -> None:
     _settings = Settings.from_env()
     _gate = build_gate(_settings)
     if not _settings.api_key:
-        print("AIDBGATE_API_KEY is not set — cannot resolve the calling principal.",
+        print("DBHARNESS_API_KEY is not set — cannot resolve the calling principal.",
               file=sys.stderr)
         raise SystemExit(2)
     try:
@@ -246,7 +246,7 @@ def main() -> None:
     except AuthError as exc:
         print(f"authentication failed: {exc}", file=sys.stderr)
         raise SystemExit(2)
-    print(f"AIDBGate: authenticated as principal {_principal.id!r} "
+    print(f"DBHarness: authenticated as principal {_principal.id!r} "
           f"(roles: {', '.join(_principal.roles) or 'none'})", file=sys.stderr)
     mcp.run()
 

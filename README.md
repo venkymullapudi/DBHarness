@@ -1,9 +1,11 @@
-# AIDBGate
+# DBHarness
 
-**A safety gate between your AI agents and your database — so agents can read and write data without ever getting direct, unchecked access.**
+### Interact with your database.
+
+**Ask in plain English — "show the open tickets", "close ticket 1" — and let AI agents read and write your database without ever getting direct, unchecked access.**
 
 <p align="center">
-  <img src="docs/demo.gif" alt="AIDBGate enforcing RBAC and PAM on live SQL from an AI agent: a read is rewritten with a tenant filter, a PII column is denied, and a privileged write is held for human approval." width="820">
+  <img src="docs/demo.gif" alt="DBHarness: asking a database in plain English. A read returns only the caller's own tenant, PII columns are hidden automatically, and a write asks for confirmation before it runs — all enforced by the gate, no SQL required." width="820">
 </p>
 
 ## What is this?
@@ -12,7 +14,7 @@ AI agents are good at deciding *what* to do, but you can't fully trust *how* the
 do it — they hallucinate, and they can be steered by prompt injection. Handing one
 a live database connection is risky.
 
-AIDBGate is the safety layer in between. An agent connects to the gate (over
+DBHarness is the safety layer in between. An agent connects to the gate (over
 [MCP](https://modelcontextprotocol.io)) and asks it to run SQL. The **gate**, not
 the agent, decides what's allowed, rewrites the query so it can't step outside the
 rules, asks a human to approve anything dangerous, runs it with credentials the
@@ -32,9 +34,9 @@ In plain terms, an agent can only:
 
 …and every attempt — allowed or denied — is written to an audit log.
 
-AIDBGate is a **platform**: point it at a database, write a policy, and build your
+DBHarness is a **platform**: point it at a database, write a policy, and build your
 agent-driven automation (ITSM, CRM, ERP, or anything else) on top. Those
-application tools are yours to build — AIDBGate is the gate underneath them.
+application tools are yours to build — DBHarness is the gate underneath them.
 
 ---
 
@@ -50,12 +52,12 @@ authenticate → analyze (SQL AST) → decide (RBAC) → rewrite (enforce)
 | Stage | Component | What it guarantees |
 |-------|-----------|--------------------|
 | **Authenticate** | `gate.authenticate` | Each agent is a first-class principal with its own key; DB creds never leave the gate. |
-| **Analyze** | `aidbgate.sql` (sqlglot) | Parses a **real AST**, not regex. One statement only; DDL/DELETE-all/multi-statement blocked up front. |
-| **Decide** | `aidbgate.policy` | Deny-by-default RBAC scoped to schema → table → **column** → **row**. |
-| **Rewrite** | `aidbgate.sql` | Injects tenant row filters and blocks redacted columns *into the statement*, so a compromised agent physically cannot exceed its grant. |
-| **PAM** | `aidbgate.pam` | Just-in-time role elevation (time-boxed) and human-approval gating for privileged writes. |
-| **Execute** | `aidbgate.db` | Runs the rewritten statement with pooled, vaulted credentials. |
-| **Audit** | `aidbgate.audit` | Append-only record of *every* request — the "session recording" for agents. |
+| **Analyze** | `dbharness.sql` (sqlglot) | Parses a **real AST**, not regex. One statement only; DDL/DELETE-all/multi-statement blocked up front. |
+| **Decide** | `dbharness.policy` | Deny-by-default RBAC scoped to schema → table → **column** → **row**. |
+| **Rewrite** | `dbharness.sql` | Injects tenant row filters and blocks redacted columns *into the statement*, so a compromised agent physically cannot exceed its grant. |
+| **PAM** | `dbharness.pam` | Just-in-time role elevation (time-boxed) and human-approval gating for privileged writes. |
+| **Execute** | `dbharness.db` | Runs the rewritten statement with pooled, vaulted credentials. |
+| **Audit** | `dbharness.audit` | Append-only record of *every* request — the "session recording" for agents. |
 
 ## Quick start (zero infra)
 
@@ -99,7 +101,7 @@ Or point the suite at any Postgres yourself:
 
 ```bash
 docker compose up -d
-AIDBGATE_TEST_PG_DSN=postgresql://postgres:aidbgate@localhost:55432/aidbgate \
+DBHARNESS_TEST_PG_DSN=postgresql://postgres:dbharness@localhost:55432/dbharness \
   PYTHONPATH=src python -m pytest tests/integration -v
 docker compose down
 ```
@@ -118,7 +120,7 @@ The gate rewrites every statement to enforce scoping, but you can add a *second,
 independent* enforcement layer inside the database so that even a gate bug can't
 cross a tenant boundary. [`postgres/rls.sql`](postgres/rls.sql) creates a
 least-privilege role and tenant-isolation policies; the gate sets a
-transaction-local `aidbgate.tenant_id` GUC from each principal's context on every
+transaction-local `dbharness.tenant_id` GUC from each principal's context on every
 statement, and the policies bind every row to it (unset → zero rows, fail
 closed).
 
@@ -126,7 +128,7 @@ closed).
 # after seeding the schema, as a superuser:
 psql "$DSN" -f postgres/rls.sql
 # then run the gate connected as the restricted role:
-export AIDBGATE_DSN="postgresql://aidbgate_agent:agentpw@localhost:5432/appdb"
+export DBHARNESS_DSN="postgresql://dbharness_agent:agentpw@localhost:5432/appdb"
 ```
 
 The RLS tests ([`tests/integration/test_pg_rls.py`](tests/integration/test_pg_rls.py))
@@ -141,10 +143,10 @@ The MCP transport needs **Python ≥ 3.10** (the `mcp` SDK's floor). Install the
 
 ```bash
 pip install -e ".[server]"          # add ".[postgres]" for PostgreSQL
-export AIDBGATE_POLICY=policies/example.yaml
-export AIDBGATE_API_KEY=support-dev-key      # identifies the connecting agent
-export AIDBGATE_SEED_SQL=examples/seed.sql   # optional demo seed (sqlite)
-aidbgate                                       # serves MCP over stdio
+export DBHARNESS_POLICY=policies/example.yaml
+export DBHARNESS_API_KEY=support-dev-key      # identifies the connecting agent
+export DBHARNESS_SEED_SQL=examples/seed.sql   # optional demo seed (sqlite)
+dbharness                                       # serves MCP over stdio
 ```
 
 Example MCP client config (Claude Desktop / any MCP host):
@@ -152,12 +154,12 @@ Example MCP client config (Claude Desktop / any MCP host):
 ```json
 {
   "mcpServers": {
-    "aidbgate": {
-      "command": "aidbgate",
+    "dbharness": {
+      "command": "dbharness",
       "env": {
-        "AIDBGATE_POLICY": "policies/example.yaml",
-        "AIDBGATE_API_KEY": "support-dev-key",
-        "AIDBGATE_SEED_SQL": "examples/seed.sql"
+        "DBHARNESS_POLICY": "policies/example.yaml",
+        "DBHARNESS_API_KEY": "support-dev-key",
+        "DBHARNESS_SEED_SQL": "examples/seed.sql"
       }
     }
   }
@@ -168,25 +170,25 @@ Example MCP client config (Claude Desktop / any MCP host):
 
 ```bash
 pip install -e ".[server,postgres]"
-export AIDBGATE_BACKEND=postgres
-export AIDBGATE_DSN="postgresql://gate_user:secret@localhost:5432/appdb"
-export AIDBGATE_POLICY=policies/example.yaml
-export AIDBGATE_API_KEY=support-dev-key
-aidbgate
+export DBHARNESS_BACKEND=postgres
+export DBHARNESS_DSN="postgresql://gate_user:secret@localhost:5432/appdb"
+export DBHARNESS_POLICY=policies/example.yaml
+export DBHARNESS_API_KEY=support-dev-key
+dbharness
 ```
 
 The DSN's credentials are the *gate's* — agents authenticate with their own
-`AIDBGATE_API_KEY` and never see the DSN.
+`DBHARNESS_API_KEY` and never see the DSN.
 
 ## Command-line tools
 
-The `aidbgate` command wraps the platform:
+The `dbharness` command wraps the platform:
 
 ```bash
-aidbgate serve                       # run the MCP server (default; reads AIDBGATE_* env)
-aidbgate policy validate policies/example.yaml   # lint a policy, print a summary
+dbharness serve                       # run the MCP server (default; reads DBHARNESS_* env)
+dbharness policy validate policies/example.yaml   # lint a policy, print a summary
 # dry-run: what WOULD the gate do with this statement? (never touches a DB)
-aidbgate explain --policy policies/example.yaml --principal support-bot \
+dbharness explain --policy policies/example.yaml --principal support-bot \
   --sql "SELECT * FROM customers" --dialect postgres
 ```
 
@@ -199,11 +201,11 @@ be denied, which makes it usable as a CI gate on policy changes.
 
 - **Backends** behind one `Executor` interface: SQLite, PostgreSQL (first-class,
   integration-tested), MySQL/MariaDB (adapter; construction + dialect tested,
-  live integration needs a server). Selected by `AIDBGATE_BACKEND`.
-- **Secrets** ([`secrets.py`](src/aidbgate/secrets.py)): DSNs/keys come from a
+  live integration needs a server). Selected by `DBHARNESS_BACKEND`.
+- **Secrets** ([`secrets.py`](src/dbharness/secrets.py)): DSNs/keys come from a
   reference (`env:`, `file:`, or a registered provider for Vault / AWS / GCP)
   instead of living in config.
-- **Observability** ([`observability.py`](src/aidbgate/observability.py)): the
+- **Observability** ([`observability.py`](src/dbharness/observability.py)): the
   gate emits a structured event per decision (`denied` / `pending_approval` /
   `executed` / `error`). Point the `Observer` at metrics/tracing;
   `InMemoryMetrics` and `LoggingObserver` ship in the box.
@@ -258,7 +260,7 @@ only shown the schema the principal may read, so it stays in scope. **Reads run
 immediately; writes return a preview of the exact compiled statement and require
 `confirm=true`** — words never silently mutate data. Two translators ship: a
 deterministic offline one (default, no API key) and an optional LLM-backed one
-(`AIDBGATE_NL=llm`) that falls back to the deterministic one when unavailable.
+(`DBHARNESS_NL=llm`) that falls back to the deterministic one when unavailable.
 
 Operator tools (require the `admin` role): `list_pending_approvals`,
 `decide_approval`, `elevate`, `audit_tail`.
@@ -345,9 +347,9 @@ credentials.
   bucket, WORM table, log pipeline).
 - **Row-level security is available** as a defense-in-depth layer
   ([`postgres/rls.sql`](postgres/rls.sql), tested) — enable it in production and
-  connect the gate as the restricted `aidbgate_agent` role. Principals without a
+  connect the gate as the restricted `dbharness_agent` role. Principals without a
   tenant (break-glass admin) need a separate `BYPASSRLS` connection.
-- **One principal per MCP connection** (via `AIDBGATE_API_KEY`) — per-call
+- **One principal per MCP connection** (via `DBHARNESS_API_KEY`) — per-call
   identity would need transport-level auth.
 - **Quoted, case-sensitive identifiers** are normalized to lower case; if you
   rely on case-sensitive table/column names, add schema-aware qualification
@@ -358,7 +360,7 @@ credentials.
 ## Project layout
 
 ```
-src/aidbgate/
+src/dbharness/
   policy/        # RBAC model, YAML loader, decision engine
   sql/           # AST-based analyzer + rewriter (sqlglot)
   pam.py         # JIT elevation + approval workflow (+ pluggable PamStore)
@@ -371,7 +373,7 @@ src/aidbgate/
   gate.py        # the enforcement pipeline (composition root) + explain()
   config.py      # build a Gate from env
   server.py      # MCP server (agent-facing surface)
-  cli.py         # `aidbgate` CLI: serve / policy validate / explain
+  cli.py         # `dbharness` CLI: serve / policy validate / explain
 policies/example.yaml
 examples/demo.py, examples/seed.sql, examples/seed_pg.sql
 tests/               # unit + adversarial (SQLite)

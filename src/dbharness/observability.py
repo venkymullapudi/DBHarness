@@ -37,11 +37,11 @@ class LoggingObserver:
     """Emit each event through the standard logging framework."""
 
     def __init__(self, logger: "logging.Logger | None" = None, level: int = logging.INFO):
-        self.log = logger or logging.getLogger("aidbgate.events")
+        self.log = logger or logging.getLogger("dbharness.events")
         self.level = level
 
     def event(self, name: str, **fields: Any) -> None:
-        self.log.log(self.level, "aidbgate.%s %s", name, fields)
+        self.log.log(self.level, "dbharness.%s %s", name, fields)
 
 
 class InMemoryMetrics:

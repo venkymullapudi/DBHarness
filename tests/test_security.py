@@ -11,7 +11,7 @@ tenant-scoped) unless a test says otherwise.
 
 import pytest
 
-from aidbgate.sql import SqlGuard, SqlGuardError
+from dbharness.sql import SqlGuard, SqlGuardError
 
 # A guard configured like the Postgres deployment (the real target). Used for
 # statement-shape attacks that don't need a live DB.

@@ -15,7 +15,7 @@ Flow:
    denylist of dangerous functions (``pg_read_file``, ``lo_import``,
    ``load_extension`` …).
 3. **Analyze** the tables, per-scope column references, and risk.
-4. The caller (:class:`~aidbgate.gate.Gate`) asks the policy engine to decide.
+4. The caller (:class:`~dbharness.gate.Gate`) asks the policy engine to decide.
 5. **Rewrite** (:meth:`rewrite`) to physically enforce the decision:
 
    * Every *source* occurrence of a filtered table is replaced by a filtered
@@ -41,7 +41,7 @@ from typing import Dict, List, Optional, Set, Tuple
 import sqlglot
 from sqlglot import exp
 
-from aidbgate.policy.models import Action
+from dbharness.policy.models import Action
 
 
 class SqlGuardError(ValueError):

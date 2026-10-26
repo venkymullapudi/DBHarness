@@ -1,10 +1,10 @@
 """Row-Level-Security defense-in-depth tests (live PostgreSQL).
 
 These prove the SECOND enforcement layer: with the schema under RLS and the gate
-connected as the least-privilege `aidbgate_agent` role, PostgreSQL refuses
+connected as the least-privilege `dbharness_agent` role, PostgreSQL refuses
 cross-tenant access *even for a raw, unfiltered statement* — i.e. even if a gate
 bug let one through. The tenant is carried by the transaction-local
-`aidbgate.tenant_id` GUC the gate sets from the principal's context.
+`dbharness.tenant_id` GUC the gate sets from the principal's context.
 """
 
 import os
@@ -12,10 +12,10 @@ from urllib.parse import urlparse, urlunparse
 
 import pytest
 
-from aidbgate.audit import AuditLog
-from aidbgate.db import PostgresExecutor
-from aidbgate.gate import Gate
-from aidbgate.policy.loader import load_policy
+from dbharness.audit import AuditLog
+from dbharness.db import PostgresExecutor
+from dbharness.gate import Gate
+from dbharness.policy.loader import load_policy
 
 pytestmark = pytest.mark.asyncio
 
@@ -25,9 +25,9 @@ RLS_SQL = os.path.join(ROOT, "postgres", "rls.sql")
 
 
 def _agent_dsn(base_dsn: str) -> str:
-    """Rewrite a superuser DSN to connect as the restricted aidbgate_agent role."""
+    """Rewrite a superuser DSN to connect as the restricted dbharness_agent role."""
     p = urlparse(base_dsn)
-    netloc = f"aidbgate_agent:agentpw@{p.hostname}:{p.port or 5432}"
+    netloc = f"dbharness_agent:agentpw@{p.hostname}:{p.port or 5432}"
     return urlunparse((p.scheme, netloc, p.path, p.params, p.query, p.fragment))
 
 
@@ -38,7 +38,7 @@ async def rls_agent(pg_executor, tmp_path):
     with open(RLS_SQL, encoding="utf-8") as fh:
         await pg_executor.run_script(fh.read())
 
-    base = os.environ["AIDBGATE_TEST_PG_DSN"]
+    base = os.environ["DBHARNESS_TEST_PG_DSN"]
     agent = PostgresExecutor(_agent_dsn(base))
     await agent.connect()
     try:
@@ -47,8 +47,8 @@ async def rls_agent(pg_executor, tmp_path):
         await agent.close()
 
 
-ACME = {"aidbgate.tenant_id": "acme"}
-GLOBEX = {"aidbgate.tenant_id": "globex"}
+ACME = {"dbharness.tenant_id": "acme"}
+GLOBEX = {"dbharness.tenant_id": "globex"}
 
 
 async def test_rls_blocks_cross_tenant_on_raw_read(rls_agent):

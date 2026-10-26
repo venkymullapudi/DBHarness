@@ -17,7 +17,7 @@ from typing import Any, Dict
 
 import yaml
 
-from aidbgate.policy.models import (
+from dbharness.policy.models import (
     Action,
     Effect,
     Permission,

@@ -2,9 +2,9 @@
 
 import os
 
-from aidbgate.policy.engine import PolicyEngine
-from aidbgate.policy.loader import load_policy
-from aidbgate.policy.models import Action
+from dbharness.policy.engine import PolicyEngine
+from dbharness.policy.loader import load_policy
+from dbharness.policy.models import Action
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 policy = load_policy(os.path.join(ROOT, "policies", "example.yaml"))

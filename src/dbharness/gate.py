@@ -17,13 +17,13 @@ import hashlib
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from aidbgate.audit import AuditLog
-from aidbgate.db import Executor
-from aidbgate.observability import NullObserver, Observer
-from aidbgate.pam import PamBroker, PamError
-from aidbgate.policy.engine import PolicyEngine
-from aidbgate.policy.models import Action, Policy, Principal
-from aidbgate.sql import Risk, SqlGuard, SqlGuardError
+from dbharness.audit import AuditLog
+from dbharness.db import Executor
+from dbharness.observability import NullObserver, Observer
+from dbharness.pam import PamBroker, PamError
+from dbharness.policy.engine import PolicyEngine
+from dbharness.policy.models import Action, Policy, Principal
+from dbharness.sql import Risk, SqlGuard, SqlGuardError
 
 _READ_ACTIONS = {Action.SELECT}
 _WRITE_ACTIONS = {Action.INSERT, Action.UPDATE, Action.DELETE}
@@ -189,7 +189,7 @@ class Gate:
         """Evaluate the write target (under the mutating action) and all source
         tables (under SELECT), then merge into one decision. Denies on the first
         failing sub-evaluation."""
-        from aidbgate.policy.engine import Decision
+        from dbharness.policy.engine import Decision
 
         cols = analyzed.column_refs
         bare = analyzed.ambiguous_columns
@@ -241,7 +241,7 @@ class Gate:
         Returns the decision, the rewritten (enforced) SQL, injected row filters,
         redacted columns, and whether human approval would be required. Invaluable
         for reviewing a policy change before it ships — and it never touches the
-        database. Powers ``aidbgate explain`` on the CLI.
+        database. Powers ``dbharness explain`` on the CLI.
         """
         try:
             root, analyzed = self.guard.analyze(sql)
@@ -312,8 +312,8 @@ class Gate:
         words never silently mutate data. The translator is untrusted; the gate
         still enforces RBAC, row filters, redaction and approval on the result.
         """
-        from aidbgate.nl import NLError, RuleBasedTranslator
-        from aidbgate.querybuilder import QueryBuilderError, build
+        from dbharness.nl import NLError, RuleBasedTranslator
+        from dbharness.querybuilder import QueryBuilderError, build
 
         tr = translator or self.translator or RuleBasedTranslator()
         schema = await self._readable_schema(principal)
@@ -358,12 +358,12 @@ class Gate:
     async def run_structured(self, principal: Principal, op: str, **kwargs: Any) -> GateResult:
         """Run a structured (find/insert/update/delete) request.
 
-        Compiles the typed request to SQL with :mod:`aidbgate.querybuilder`, then
+        Compiles the typed request to SQL with :mod:`dbharness.querybuilder`, then
         runs it through the exact same pipeline as raw SQL — so all enforcement
         (row filters, redaction, approval, audit) applies unchanged. The agent
         never authors SQL text.
         """
-        from aidbgate.querybuilder import QueryBuilderError, build
+        from dbharness.querybuilder import QueryBuilderError, build
 
         try:
             sql, mode = build(op, dialect=self.guard.dialect,
@@ -422,7 +422,7 @@ class Gate:
 
     @staticmethod
     def _session_for(principal: Principal) -> Optional[Dict[str, Any]]:
-        """Map a principal's context into ``aidbgate.<key>`` session GUCs.
+        """Map a principal's context into ``dbharness.<key>`` session GUCs.
 
         These are handed to the database on every execution so row-level-security
         policies can enforce the same scoping as defense-in-depth. Harmless when
@@ -430,7 +430,7 @@ class Gate:
         """
         if not principal.context:
             return None
-        return {f"aidbgate.{k}": str(v) for k, v in principal.context.items()}
+        return {f"dbharness.{k}": str(v) for k, v in principal.context.items()}
 
     # -- schema introspection (policy-filtered) -------------------------------
 

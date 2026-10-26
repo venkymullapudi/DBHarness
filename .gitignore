@@ -8,9 +8,9 @@ dist/
 .venv*/
 venv/
 
-# AIDBGate local artifacts
+# DBHarness local artifacts
 *.jsonl
-aidbgate-audit.jsonl
+dbharness-audit.jsonl
 examples/demo-audit.jsonl
 *.sqlite
 *.db

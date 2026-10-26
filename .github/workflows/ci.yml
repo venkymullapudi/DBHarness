@@ -17,12 +17,12 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_PASSWORD: aidbgate
-          POSTGRES_DB: aidbgate
+          POSTGRES_PASSWORD: dbharness
+          POSTGRES_DB: dbharness
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d aidbgate"
+          --health-cmd "pg_isready -U postgres -d dbharness"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -39,12 +39,12 @@ jobs:
         run: pip install -e ".[dev,postgres]"
 
       - name: Import sanity check
-        run: python -c "import aidbgate; print('aidbgate', aidbgate.__version__)"
+        run: python -c "import dbharness; print('dbharness', dbharness.__version__)"
 
       - name: Run unit + adversarial tests (SQLite)
         run: python -m pytest tests -q --ignore=tests/integration
 
       - name: Run integration tests (live PostgreSQL)
         env:
-          AIDBGATE_TEST_PG_DSN: postgresql://postgres:aidbgate@localhost:5432/aidbgate
+          DBHARNESS_TEST_PG_DSN: postgresql://postgres:dbharness@localhost:5432/dbharness
         run: python -m pytest tests/integration -v

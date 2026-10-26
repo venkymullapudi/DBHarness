@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aidbgate"
+name = "dbharness"
 version = "0.1.0"
-description = "AI DB Gate — an RBAC + PAM enforcement gateway that lets AI agents read/write a database safely."
+description = "DBHarness — interact with your database: an RBAC + PAM gateway that lets AI agents read and write safely, in SQL, structured calls, or plain English."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Apache-2.0" }
-authors = [{ name = "AIDBGate" }]
+authors = [{ name = "DBHarness" }]
 keywords = ["mcp", "rbac", "pam", "database", "ai-agents", "security", "gateway"]
 dependencies = [
     "sqlglot>=25.0.0",
@@ -25,7 +25,7 @@ mysql = ["aiomysql>=0.2.0"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "aiosqlite>=0.20.0"]
 
 [project.scripts]
-aidbgate = "aidbgate.cli:main"
+dbharness = "dbharness.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

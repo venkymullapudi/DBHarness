@@ -7,7 +7,7 @@ actual query planner, and where Postgres-only threats (data-modifying CTEs,
 `pg_read_file`) are genuinely executable.
 
 Run via ``scripts/run_pg_integration.sh`` (Dockerized Postgres) or point
-``AIDBGATE_TEST_PG_DSN`` at any Postgres and run ``pytest tests/integration``.
+``DBHARNESS_TEST_PG_DSN`` at any Postgres and run ``pytest tests/integration``.
 """
 
 import pytest

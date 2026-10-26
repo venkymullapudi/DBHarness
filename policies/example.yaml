@@ -1,4 +1,4 @@
-# Example AIDBGate policy — an ITSM (help-desk) workload sitting directly on the DB.
+# Example DBHarness policy — an ITSM (help-desk) workload sitting directly on the DB.
 #
 # Three agents share one multi-tenant database. The policy demonstrates every
 # enforcement primitive: role-scoped table access, per-tenant ROW filtering,

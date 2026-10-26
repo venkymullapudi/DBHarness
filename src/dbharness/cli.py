@@ -1,8 +1,8 @@
-"""AIDBGate command-line interface.
+"""DBHarness command-line interface.
 
-    aidbgate serve                 # run the MCP server (default when no subcommand)
-    aidbgate policy validate PATH  # load & lint a policy file, report a summary
-    aidbgate explain ...           # dry-run a statement: what WOULD the gate do?
+    dbharness serve                 # run the MCP server (default when no subcommand)
+    dbharness policy validate PATH  # load & lint a policy file, report a summary
+    dbharness explain ...           # dry-run a statement: what WOULD the gate do?
 
 ``explain`` is a security-review tool: it shows the decision, the rewritten
 (enforced) SQL, injected row filters, redacted columns, and whether approval is
@@ -16,14 +16,14 @@ import json
 import sys
 from typing import List, Optional
 
-from aidbgate.audit import AuditLog, NullAuditSink
-from aidbgate.db import NullExecutor
-from aidbgate.gate import Gate
-from aidbgate.policy.loader import PolicyError, load_policy
+from dbharness.audit import AuditLog, NullAuditSink
+from dbharness.db import NullExecutor
+from dbharness.gate import Gate
+from dbharness.policy.loader import PolicyError, load_policy
 
 
 def _cmd_serve(_args: argparse.Namespace) -> int:
-    from aidbgate.server import main as serve_main
+    from dbharness.server import main as serve_main
 
     serve_main()
     return 0
@@ -76,10 +76,10 @@ def _cmd_explain(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="aidbgate", description=__doc__)
+    parser = argparse.ArgumentParser(prog="dbharness", description=__doc__)
     sub = parser.add_subparsers(dest="command")
 
-    sub.add_parser("serve", help="run the MCP server (reads AIDBGATE_* env)")
+    sub.add_parser("serve", help="run the MCP server (reads DBHARNESS_* env)")
 
     pol = sub.add_parser("policy", help="policy tooling")
     pol_sub = pol.add_subparsers(dest="policy_command")
@@ -99,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Optional[List[str]] = None) -> None:
     argv = list(sys.argv[1:] if argv is None else argv)
-    # Default to `serve` so the documented MCP config (command: "aidbgate") works.
+    # Default to `serve` so the documented MCP config (command: "dbharness") works.
     if not argv:
         argv = ["serve"]
 

@@ -1,6 +1,6 @@
 """Policy layer: the RBAC model, the YAML loader, and the decision engine."""
 
-from aidbgate.policy.models import (
+from dbharness.policy.models import (
     Action,
     Effect,
     Permission,
@@ -8,7 +8,7 @@ from aidbgate.policy.models import (
     Principal,
     Role,
 )
-from aidbgate.policy.engine import Decision, PolicyEngine
+from dbharness.policy.engine import Decision, PolicyEngine
 
 __all__ = [
     "Action",

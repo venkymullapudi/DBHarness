@@ -94,6 +94,6 @@ async def test_approval_flow_binds_exact_statement(gate):
 
 @pytest.mark.asyncio
 async def test_bad_api_key_rejected(gate):
-    from aidbgate.gate import AuthError
+    from dbharness.gate import AuthError
     with pytest.raises(AuthError):
         gate.authenticate("not-a-real-key")

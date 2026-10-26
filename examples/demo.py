@@ -1,4 +1,4 @@
-"""End-to-end demonstration of the AIDBGate enforcement pipeline.
+"""End-to-end demonstration of the DBHarness enforcement pipeline.
 
 Runs entirely in-process against an in-memory SQLite database — no MCP transport,
 no external DB — so you can watch each control fire. Run it with:
@@ -12,7 +12,7 @@ import asyncio
 import json
 import os
 
-from aidbgate.config import Settings, build_gate
+from dbharness.config import Settings, build_gate
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -46,7 +46,7 @@ async def main() -> None:
     billing = gate.authenticate("billing-dev-key")
     admin = gate.authenticate("admin-dev-key")
 
-    print("AIDBGate demo — ITSM help-desk over a shared multi-tenant DB\n")
+    print("DBHarness demo — ITSM help-desk over a shared multi-tenant DB\n")
     print("support-bot can see only these tables:",
           await gate.list_tables(support))
 

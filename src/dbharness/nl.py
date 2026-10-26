@@ -23,7 +23,7 @@ Two translators ship:
   is still only a candidate the gate governs.
 
 The grammar the translator targets is the structured query-builder vocabulary
-(:mod:`aidbgate.querybuilder`), so everything funnels through one safe path.
+(:mod:`dbharness.querybuilder`), so everything funnels through one safe path.
 """
 
 from __future__ import annotations
@@ -191,6 +191,21 @@ class RuleBasedTranslator:
             return low, ""
         return low[:m.start()], low[m.end():]
 
+    def _id_filter(self, low: str, table: str, cols: List[str]) -> List[Dict[str, Any]]:
+        """Resolve a trailing "<thing> N" (e.g. "ticket 1", "customer #3") to id=N.
+
+        A natural way to name a single row — "close ticket 1", "show customer 3" —
+        when the table has an ``id`` column. The number must follow the table word
+        (so "top 5 tickets" stays a limit, not an id)."""
+        if "id" not in cols:
+            return []
+        leaf = table.split(".")[-1].lower()
+        singular = leaf[:-1] if leaf.endswith("s") else leaf
+        m = re.search(rf"\b(?:{re.escape(leaf)}|{re.escape(singular)})\s+#?(\d+)\b", low)
+        if m:
+            return [{"column": "id", "op": "eq", "value": int(m.group(1))}]
+        return []
+
     # -- builders ------------------------------------------------------------
 
     def _find(self, t: str, low: str, table: str, cols: List[str]) -> NLRequest:
@@ -199,6 +214,8 @@ class RuleBasedTranslator:
         # pull it out before parsing conditions (it's captured as limit below).
         cond = re.sub(r"\b(?:limit|top|first)\s+\d+\b", " ", cond, flags=re.I).strip()
         filters = self._parse_conditions(cond, cols)
+        if not filters:
+            filters = self._id_filter(low, table, cols)
         columns = self._wanted_columns(before, table, cols)
         explicit = bool(columns)
         # Default to the principal's *allowed* columns rather than SELECT *, which
@@ -244,12 +261,19 @@ class RuleBasedTranslator:
                          ", ".join(f"{k}={v!r}" for k, v in values.items()))
 
     def _update(self, t: str, low: str, table: str, cols: List[str]) -> NLRequest:
+        leaf_raw = table.split(".")[-1].lower()
+        singular = leaf_raw[:-1] if leaf_raw.endswith("s") else leaf_raw
         before, cond = self._split_where(low)
         filters = self._parse_conditions(cond, cols)
+        if not filters:
+            filters = self._id_filter(low, table, cols)
+            if filters:  # drop the matched "<table> N" phrase from the assignment text
+                before = re.sub(rf"\b(?:{re.escape(leaf_raw)}|{re.escape(singular)})\s+#?\d+\b",
+                                " ", before, flags=re.I)
         # assignment segment is between the table and the where-clause. Strip the
         # leading verb, a "<prep> <table>" phrase ("set ... on tickets"), any
         # remaining bare table mention, a leading "set", and a dangling preposition.
-        leaf = re.escape(table.split(".")[-1])
+        leaf = re.escape(leaf_raw)
         seg = re.sub(rf"^.*?{_UPDATE_VERBS}\b", "", before, flags=re.I)
         seg = re.sub(rf"\b(?:on|in|for|of|from)\s+{leaf}s?\b", " ", seg, flags=re.I)
         seg = re.sub(rf"\b{leaf}s?\b", " ", seg, flags=re.I)
@@ -269,6 +293,8 @@ class RuleBasedTranslator:
     def _delete(self, t: str, low: str, table: str, cols: List[str]) -> NLRequest:
         _, cond = self._split_where(low)
         filters = self._parse_conditions(cond, cols)
+        if not filters:
+            filters = self._id_filter(low, table, cols)
         return NLRequest(kind="structured", op="delete",
                          kwargs={"table": table, "filters": filters, "all": not filters},
                          mode="write",

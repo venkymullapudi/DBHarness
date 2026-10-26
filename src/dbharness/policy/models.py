@@ -2,7 +2,7 @@
 
 A ``Policy`` is the whole configured world: the principals (agents), the roles,
 and — implicitly through roles — the permissions. Everything here is plain data;
-the decision logic lives in :mod:`aidbgate.policy.engine`.
+the decision logic lives in :mod:`dbharness.policy.engine`.
 
 Design rules baked into the model:
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Run the AIDBGate integration suite against a throwaway Dockerized PostgreSQL.
+# Run the DBHarness integration suite against a throwaway Dockerized PostgreSQL.
 #
 #   scripts/run_pg_integration.sh
 #
 # It starts a postgres:16 container, waits for it to accept connections, points
-# AIDBGATE_TEST_PG_DSN at it, runs `pytest tests/integration`, and tears the
+# DBHARNESS_TEST_PG_DSN at it, runs `pytest tests/integration`, and tears the
 # container down again (even on failure). Requires Docker and a Python env with
 # the project installed with its dev + postgres extras:
 #
@@ -13,11 +13,11 @@
 #
 set -euo pipefail
 
-CONTAINER="aidbgate-pg-itest"
+CONTAINER="dbharness-pg-itest"
 IMAGE="postgres:16-alpine"
-PORT="${AIDBGATE_PG_PORT:-55432}"     # non-default to avoid clashing with a local PG
-PASSWORD="aidbgate"
-DB="aidbgate"
+PORT="${DBHARNESS_PG_PORT:-55432}"     # non-default to avoid clashing with a local PG
+PASSWORD="dbharness"
+DB="dbharness"
 
 cleanup() {
   echo "==> Removing container ${CONTAINER}"
@@ -44,8 +44,8 @@ for i in $(seq 1 30); do
   if [ "${i}" -eq 30 ]; then echo "Postgres did not become ready" >&2; exit 1; fi
 done
 
-export AIDBGATE_TEST_PG_DSN="postgresql://postgres:${PASSWORD}@localhost:${PORT}/${DB}"
-echo "==> AIDBGATE_TEST_PG_DSN=${AIDBGATE_TEST_PG_DSN}"
+export DBHARNESS_TEST_PG_DSN="postgresql://postgres:${PASSWORD}@localhost:${PORT}/${DB}"
+echo "==> DBHARNESS_TEST_PG_DSN=${DBHARNESS_TEST_PG_DSN}"
 
 echo "==> Running integration tests"
 PYTHONPATH=src python -m pytest tests/integration -v "$@"

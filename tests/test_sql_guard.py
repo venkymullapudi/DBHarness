@@ -2,8 +2,8 @@
 
 import pytest
 
-from aidbgate.policy.models import Action
-from aidbgate.sql import Risk, SqlGuard, SqlGuardError
+from dbharness.policy.models import Action
+from dbharness.sql import Risk, SqlGuard, SqlGuardError
 
 guard = SqlGuard(dialect="sqlite")
 

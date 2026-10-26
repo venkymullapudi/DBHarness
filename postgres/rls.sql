@@ -1,4 +1,4 @@
--- PostgreSQL Row-Level Security — defense in depth for AIDBGate.
+-- PostgreSQL Row-Level Security — defense in depth for DBHarness.
 --
 -- The gate already rewrites every statement to enforce tenant scoping. RLS adds
 -- a SECOND, independent enforcement layer *inside the database*: even if a gate
@@ -6,10 +6,10 @@
 -- refuses to return or write another tenant's rows.
 --
 -- How it fits together:
---   * The gate connects to Postgres as the least-privilege role `aidbgate_agent`
+--   * The gate connects to Postgres as the least-privilege role `dbharness_agent`
 --     (NOT a superuser, NOT BYPASSRLS — both would defeat RLS).
 --   * On every statement the gate sets a transaction-local GUC
---     `aidbgate.tenant_id` from the calling principal's context
+--     `dbharness.tenant_id` from the calling principal's context
 --     (see Gate._session_for / PostgresExecutor._apply_session).
 --   * The policies below constrain every row to that GUC. `current_setting(...,
 --     true)` returns NULL when the GUC is unset, so an un-scoped connection sees
@@ -25,16 +25,16 @@
 -- 1. Least-privilege login role the gate connects as. Change the password.
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'aidbgate_agent') THEN
-    CREATE ROLE aidbgate_agent LOGIN PASSWORD 'agentpw';
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dbharness_agent') THEN
+    CREATE ROLE dbharness_agent LOGIN PASSWORD 'agentpw';
   END IF;
 END
 $$;
 
-GRANT USAGE ON SCHEMA public TO aidbgate_agent;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO aidbgate_agent;
+GRANT USAGE ON SCHEMA public TO dbharness_agent;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO dbharness_agent;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO aidbgate_agent;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO dbharness_agent;
 
 -- 2. Enable + FORCE RLS and install a tenant-isolation policy on each scoped
 --    table. FORCE ensures the policy applies even to a table's owner.
@@ -49,8 +49,8 @@ BEGIN
     EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I', t);
     EXECUTE format(
       'CREATE POLICY tenant_isolation ON %I '
-      'USING (tenant_id = current_setting(''aidbgate.tenant_id'', true)) '
-      'WITH CHECK (tenant_id = current_setting(''aidbgate.tenant_id'', true))',
+      'USING (tenant_id = current_setting(''dbharness.tenant_id'', true)) '
+      'WITH CHECK (tenant_id = current_setting(''dbharness.tenant_id'', true))',
       t
     );
   END LOOP;

@@ -11,10 +11,10 @@ literal value or as a **reference** that names where to fetch it from:
 Deployments that use HashiCorp Vault, AWS Secrets Manager, GCP Secret Manager,
 etc. register a provider for their scheme once at startup:
 
-    from aidbgate.secrets import register_provider
+    from dbharness.secrets import register_provider
     register_provider("vault", lambda path: my_vault_client.read(path))
 
-and then reference secrets as ``vault:secret/data/aidbgate#dsn``. The rest of the
+and then reference secrets as ``vault:secret/data/dbharness#dsn``. The rest of the
 platform only ever calls :func:`resolve_secret`.
 """
 

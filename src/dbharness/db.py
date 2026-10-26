@@ -339,7 +339,7 @@ class MySQLExecutor(Executor):
 
 
 class NullExecutor(Executor):
-    """An executor that refuses to run anything. Used by ``aidbgate explain`` and
+    """An executor that refuses to run anything. Used by ``dbharness explain`` and
     other dry-run paths that only need the guard's dialect and schema."""
 
     def __init__(self, dialect: str = "postgres", default_schema: str = "public"):

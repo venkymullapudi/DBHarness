@@ -7,7 +7,7 @@ and the scoping-column rule — and that writes are previewed, not executed blin
 
 import pytest
 
-from aidbgate.nl import NLError, RuleBasedTranslator
+from dbharness.nl import NLError, RuleBasedTranslator
 
 TICKETS = ["id", "tenant_id", "subject", "status", "priority", "customer_id"]
 SCHEMA = {
@@ -149,3 +149,38 @@ async def test_nl_delete_without_grant_denied(gate):
     support = gate.authenticate("support-dev-key")
     res = await gate.run_nl(support, "delete tickets where id is 1")
     assert res.status in ("denied", "error")
+
+
+# -- "<table> N" resolves to id = N (natural way to name one row) -------------
+
+
+def test_find_table_number_is_id():
+    r = _t("show ticket 1")
+    assert r.op == "find"
+    assert r.kwargs["filters"] == [{"column": "id", "op": "eq", "value": 1}]
+
+
+def test_update_table_number_is_id():
+    r = _t("set status to closed on ticket 1")
+    assert r.op == "update" and r.kwargs["values"] == {"status": "closed"}
+    assert r.kwargs["filters"] == [{"column": "id", "op": "eq", "value": 1}]
+
+
+def test_delete_table_number_is_id():
+    r = _t("delete ticket 1")
+    assert r.kwargs["filters"] == [{"column": "id", "op": "eq", "value": 1}]
+    assert r.kwargs["all"] is False
+
+
+def test_limit_before_table_is_not_id():
+    r = _t("show top 5 tickets")  # number before table -> limit, not id
+    assert r.kwargs.get("limit") == 5
+    assert "filters" not in r.kwargs
+
+
+@pytest.mark.asyncio
+async def test_nl_show_ticket_1_returns_one_row(gate):
+    support = gate.authenticate("support-dev-key")
+    res = await gate.run_nl(support, "show ticket 1")
+    assert res.status == "ok"
+    assert [row[0] for row in res.data["rows"]] == [1]
