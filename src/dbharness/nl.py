@@ -86,6 +86,10 @@ _COND_OPS = [
 ]
 
 _LIMIT_RE = re.compile(r"\b(?:limit|top|first)\s+(\d+)\b", re.I)
+# "sorted by X", "order by X desc", "ordered by X in descending order"
+_ORDER_RE = re.compile(
+    r"\b(?:sorted|ordered|order)\s+by\s+(\w+)(?:\s+(?:in\s+)?(asc\w*|desc\w*))?(?:\s+order)?",
+    re.I)
 _VALUE_RE = r"(?:'([^']*)'|\"([^\"]*)\"|([-\w.@%]+))"
 
 
@@ -210,9 +214,11 @@ class RuleBasedTranslator:
 
     def _find(self, t: str, low: str, table: str, cols: List[str]) -> NLRequest:
         before, cond = self._split_where(low)
-        # A trailing "limit/top/first N" can land inside the condition segment;
-        # pull it out before parsing conditions (it's captured as limit below).
-        cond = re.sub(r"\b(?:limit|top|first)\s+\d+\b", " ", cond, flags=re.I).strip()
+        order_by = self._parse_order_by(low, cols)
+        # A trailing "limit/top/first N" or an "order by ..." clause can land
+        # inside the condition segment; pull both out before parsing conditions.
+        cond = re.sub(r"\b(?:limit|top|first)\s+\d+\b", " ", cond, flags=re.I)
+        cond = _ORDER_RE.sub(" ", cond).strip()
         filters = self._parse_conditions(cond, cols)
         if not filters:
             filters = self._id_filter(low, table, cols)
@@ -226,13 +232,30 @@ class RuleBasedTranslator:
         kwargs: Dict[str, Any] = {"table": table, "columns": columns}
         if filters:
             kwargs["filters"] = filters
+        if order_by:
+            kwargs["order_by"] = order_by
         limit = _LIMIT_RE.search(low)
         if limit:
             kwargs["limit"] = int(limit.group(1))
         return NLRequest(kind="structured", op="find", kwargs=kwargs, mode="read",
                          interpreted=self._describe("find", table, filters,
                                                     columns if explicit else None,
-                                                    kwargs.get("limit")))
+                                                    kwargs.get("limit"), order_by))
+
+    def _parse_order_by(self, low: str, cols: List[str]) -> Optional[List[Dict[str, Any]]]:
+        """Parse 'sorted by X [desc]' into a structured order_by, or None.
+
+        Fails closed: ordering by a column the principal can't read (e.g. a
+        redacted one, absent from `cols`) raises rather than leaking an ordering
+        side-channel on hidden data."""
+        m = _ORDER_RE.search(low)
+        if not m:
+            return None
+        col = self._known_col(m.group(1), cols)
+        if not col:
+            raise NLError(f"cannot sort by {m.group(1)!r} — not a readable column")
+        direction = (m.group(2) or "").lower()
+        return [{"column": col, "desc": direction.startswith("desc")}]
 
     def _count(self, t: str, low: str, table: str, cols: List[str]) -> NLRequest:
         _, cond = self._split_where(low)
@@ -346,11 +369,14 @@ class RuleBasedTranslator:
     def _desc_conds(filters: List[Dict[str, Any]]) -> str:
         return ", ".join(f"{f['column']} {f['op']} {f['value']}" for f in filters)
 
-    def _describe(self, op, table, filters, columns, limit) -> str:
+    def _describe(self, op, table, filters, columns, limit, order_by=None) -> str:
         bare = table.split(".")[-1]
         s = f"find {', '.join(columns) if columns else 'all columns'} in {bare}"
         if filters:
             s += f" where {self._desc_conds(filters)}"
+        if order_by:
+            s += " order by " + ", ".join(
+                f"{o['column']} {'desc' if o.get('desc') else 'asc'}" for o in order_by)
         if limit:
             s += f" (limit {limit})"
         return s

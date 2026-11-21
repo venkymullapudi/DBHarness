@@ -184,3 +184,49 @@ async def test_nl_show_ticket_1_returns_one_row(gate):
     res = await gate.run_nl(support, "show ticket 1")
     assert res.status == "ok"
     assert [row[0] for row in res.data["rows"]] == [1]
+
+
+# -- ordering: "sorted by X", "order by X desc" ------------------------------
+
+
+def test_find_sorted_by_column():
+    r = _t("show tickets sorted by priority")
+    assert r.kwargs["order_by"] == [{"column": "priority", "desc": False}]
+    assert "filters" not in r.kwargs
+
+
+def test_find_order_by_desc_with_condition_and_limit():
+    r = _t("show tickets where status is open order by id descending limit 3")
+    assert r.kwargs["filters"] == [{"column": "status", "op": "eq", "value": "open"}]
+    assert r.kwargs["order_by"] == [{"column": "id", "desc": True}]
+    assert r.kwargs["limit"] == 3
+    assert "order by id desc" in r.interpreted
+
+
+def test_find_ordered_by_in_descending_order():
+    r = _t("list customers ordered by name in descending order")
+    assert r.kwargs["order_by"] == [{"column": "name", "desc": True}]
+
+
+def test_order_by_unknown_or_hidden_column_fails_closed():
+    # ssn isn't in the principal's readable schema: ordering by it would be a
+    # side channel on a redacted column, so the translator refuses.
+    with pytest.raises(NLError):
+        _t("list customers sorted by ssn")
+
+
+@pytest.mark.asyncio
+async def test_nl_sorted_read_through_gate(gate):
+    support = gate.authenticate("support-dev-key")
+    res = await gate.run_nl(support, "show tickets sorted by id desc")
+    assert res.status == "ok"
+    ids = [r[0] for r in res.data["rows"]]
+    assert ids == sorted(ids, reverse=True) and len(ids) == 2
+    assert {r[1] for r in res.data["rows"]} == {"acme"}  # still tenant-scoped
+
+
+@pytest.mark.asyncio
+async def test_nl_cannot_sort_by_redacted_column(gate):
+    support = gate.authenticate("support-dev-key")
+    res = await gate.run_nl(support, "list customers sorted by ssn")
+    assert res.status == "error"
