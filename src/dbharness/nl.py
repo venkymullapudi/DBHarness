@@ -259,17 +259,20 @@ class RuleBasedTranslator:
 
     def _count(self, t: str, low: str, table: str, cols: List[str]) -> NLRequest:
         _, cond = self._split_where(low)
+        cond = re.sub(r"\b(?:limit|top|first)\s+\d+\b", " ", cond, flags=re.I)
+        cond = _ORDER_RE.sub(" ", cond).strip()
         filters = self._parse_conditions(cond, cols)
-        # count isn't in the structured vocabulary, so emit SQL (still gated).
-        where = ""
+        if not filters:
+            filters = self._id_filter(low, table, cols)
+        # Route through the structured query-builder (count=True) rather than
+        # hand-building SQL: one validated, injection-safe path for every request.
+        kwargs: Dict[str, Any] = {"table": table, "count": True}
         if filters:
-            parts = [self._cond_sql(f) for f in filters]
-            where = " WHERE " + " AND ".join(parts)
+            kwargs["filters"] = filters
         bare = table.split(".")[-1]
-        sql = f"SELECT COUNT(*) AS count FROM {bare}{where}"
-        return NLRequest(kind="sql", sql=sql, mode="read",
+        return NLRequest(kind="structured", op="find", kwargs=kwargs, mode="read",
                          interpreted=f"count rows in {bare}" +
-                         (f" where {', '.join(f['column']+' '+f['op']+' '+str(f['value']) for f in filters)}" if filters else ""))
+                         (f" where {self._desc_conds(filters)}" if filters else ""))
 
     def _insert(self, t: str, low: str, table: str, cols: List[str]) -> NLRequest:
         m = re.search(r"\bwith\s+(.*)$", low, re.I)
@@ -356,14 +359,6 @@ class RuleBasedTranslator:
             raw = next(g for g in m.groups()[1:] if g is not None)
             values[col] = self._coerce(raw)
         return values
-
-    @staticmethod
-    def _cond_sql(f: Dict[str, Any]) -> str:
-        sym = {"eq": "=", "ne": "!=", "lt": "<", "lte": "<=", "gt": ">", "gte": ">=",
-               "like": "LIKE"}.get(f["op"], "=")
-        v = f["value"]
-        lit = str(v) if isinstance(v, (int, float)) else "'" + str(v).replace("'", "''") + "'"
-        return f"{f['column']} {sym} {lit}"
 
     @staticmethod
     def _desc_conds(filters: List[Dict[str, Any]]) -> str:

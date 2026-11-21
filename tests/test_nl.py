@@ -31,9 +31,10 @@ def test_find_defaults_to_allowed_columns():
     assert r.kwargs["columns"] == TICKETS  # explicit columns, never SELECT *
 
 
-def test_count_emits_gated_sql():
+def test_count_is_structured_read():
     r = _t("how many customers")
-    assert r.kind == "sql" and r.mode == "read" and "COUNT(*)" in r.sql
+    assert r.kind == "structured" and r.op == "find"
+    assert r.kwargs.get("count") is True and r.mode == "read"
 
 
 def test_find_with_condition():
@@ -230,3 +231,20 @@ async def test_nl_cannot_sort_by_redacted_column(gate):
     support = gate.authenticate("support-dev-key")
     res = await gate.run_nl(support, "list customers sorted by ssn")
     assert res.status == "error"
+
+
+# -- count now routes through the structured builder (no hand-built SQL) ------
+
+
+def test_count_is_structured_not_raw_sql():
+    r = _t("how many tickets where priority is high")
+    assert r.kind == "structured" and r.op == "find" and r.kwargs.get("count") is True
+    assert r.kwargs["filters"] == [{"column": "priority", "op": "eq", "value": "high"}]
+
+
+@pytest.mark.asyncio
+async def test_nl_count_with_filter_is_tenant_scoped(gate):
+    support = gate.authenticate("support-dev-key")
+    res = await gate.run_nl(support, "how many tickets where priority is high")
+    assert res.status == "ok"
+    assert res.data["rows"][0][0] == 1  # acme ticket #1 only; globex not counted
